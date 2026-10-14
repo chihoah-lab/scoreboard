@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classroom Group Scoreboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti for Fireworks & Celebrations -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    html, body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: 'Nunito', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-game {
+      font-family: 'Fredoka', 'Arial Black', sans-serif;
+    }
+    /* Dynamic studio backdrop with fallback glows matching the game-show set */
+    .studio-bg {
+      background-color: #070b19;
+      background-image: 
+        radial-gradient(circle at 50% 10%, rgba(37, 99, 235, 0.45) 0%, transparent 60%),
+        radial-gradient(circle at 20% 80%, rgba(239, 68, 68, 0.25) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(15, 23, 42, 0.8) 0%, rgba(3, 7, 18, 0.95) 100%);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    
+    /* Neon card borders */
+    .card-neon {
+      background: rgba(13, 24, 48, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.25);
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s;
+    }
+    .card-neon:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px -5px rgba(0, 0, 0, 0.7), 0 0 20px rgba(56, 189, 248, 0.45);
+      border-color: rgba(56, 189, 248, 0.8);
+    }
+    
+    .text-glow-gold {
+      color: #FACC15;
+      text-shadow: 0 0 14px rgba(250, 204, 21, 0.55), 0 3px 6px rgba(0, 0, 0, 0.9);
+    }
+    .text-glow-title {
+      text-shadow: 0 0 20px rgba(234, 179, 8, 0.6), 0 4px 10px rgba(0, 0, 0, 0.9);
+    }
+    .btn-bounce:active {
+      transform: scale(0.92);
+    }
+    .score-animate {
+      animation: scorePulse 0.25s ease-out;
+    }
+    @keyframes scorePulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.18); color: #67e8f9; }
+      100% { transform: scale(1); }
+    }
+    /* Pulse light animation for champion */
+    @keyframes winnerPulse {
+      0%, 100% { box-shadow: 0 0 25px #eab308, inset 0 0 15px #facc15; }
+      50% { box-shadow: 0 0 50px #f59e0b, inset 0 0 30px #fde047; }
+    }
+    .winner-highlight {
+      animation: winnerPulse 1.8s infinite;
+    }
+  </style>
+</head>
+<body class="studio-bg min-h-screen text-white flex flex-col justify-between p-2 sm:p-4 md:p-6 relative overflow-x-hidden">
+
+  <!-- Header Section -->
+  <header class="w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 pb-2.5 sm:pb-3 border-b border-cyan-500/30">
+    <div class="flex items-center gap-2.5 sm:gap-3 w-full md:w-auto justify-between md:justify-start">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-xl sm:text-2xl shadow-lg shadow-amber-500/30 shrink-0">
+          🎓
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-black font-game tracking-wider text-amber-400 text-glow-title uppercase leading-tight">
+            Group Scoreboard
+          </h1>
+          <p class="text-[11px] sm:text-xs md:text-sm text-cyan-200/80 font-semibold tracking-wide hidden xs:block">
+            Tap scores to update • Touch names to edit
+          </p>
+        </div>
+      </div>
+
+      <!-- Compact Winner Button for small screens (displayed inline in header row) -->
+      <button onclick="showWinner()" class="md:hidden bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 text-white font-game font-bold text-xs sm:text-sm px-3 py-2 rounded-xl shadow-md border border-yellow-200 flex items-center gap-1.5 btn-bounce">
+        <span>🏆</span>
+        <span>RESULT</span>
+      </button>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="flex items-center justify-end gap-2 sm:gap-3 w-full md:w-auto">
+      <!-- Background Image Uploader -->
+      <label class="cursor-pointer bg-slate-800/80 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition btn-bounce" title="Change Background Image">
+        <span>🖼️</span>
+        <span class="inline">Photo</span>
+        <input type="file" id="bgInput" accept="image/*" class="hidden">
+      </label>
+
+      <!-- Reset button -->
+      <button onclick="openResetModal()" class="bg-slate-800/80 hover:bg-rose-950 text-rose-300 border border-rose-500/40 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition btn-bounce" title="Reset all scores">
+        <span>🔄</span>
+        <span class="inline">Reset</span>
+      </button>
+
+      <!-- Final Result / Winner Button (Desktop) -->
+      <button onclick="showWinner()" class="hidden md:flex bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 hover:from-amber-400 hover:to-rose-400 text-white font-game font-bold text-base lg:text-xl px-5 lg:px-7 py-2.5 lg:py-3 rounded-2xl shadow-lg shadow-rose-500/40 border-2 border-yellow-200 items-center gap-2 transition transform hover:scale-105 btn-bounce">
+        <span class="text-xl lg:text-2xl animate-bounce">🏆</span>
+        <span>FINAL RESULT</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Scoreboard Grid (2 columns on mobile portrait, 4 columns on desktop/tablet) -->
+  <main class="w-full max-w-7xl mx-auto flex-1 flex items-center justify-center py-2 sm:py-4">
+    <div id="teams-grid" class="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-5 w-full">
+      <!-- Dynamically generated via JavaScript -->
+    </div>
+  </main>
+
+  <!-- Footer Tip bar -->
+  <footer class="w-full max-w-7xl mx-auto text-center py-1 sm:py-2 text-[11px] sm:text-xs md:text-sm text-cyan-200/70 font-medium">
+    💡 Pro-tip: Tap number directly for +5 pts • Use + and − for 1 pt increments
+  </footer>
+
+  <!-- Winner Celebration Modal -->
+  <div id="winner-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+    <div class="card-neon winner-highlight max-w-2xl w-full rounded-3xl p-6 sm:p-10 text-center relative border-4 border-yellow-400 bg-slate-900/95">
+      
+      <div class="text-6xl sm:text-7xl mb-2 animate-bounce">👑</div>
+      <h2 class="text-3xl sm:text-5xl font-black font-game text-yellow-300 text-glow-gold uppercase tracking-wider mb-2">
+        CONGRATULATIONS!
+      </h2>
+      <p class="text-cyan-200 text-sm sm:text-base font-semibold mb-6">THE CHAMPION OF TODAY'S CLASS</p>
+      
+      <!-- Winner List -->
+      <div id="winner-list" class="my-6 space-y-3">
+        <!-- Injected dynamically -->
+      </div>
+
+      <div class="flex items-center justify-center gap-4 mt-8">
+        <button onclick="triggerConfettiCannon()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-6 py-3 rounded-xl font-game text-base sm:text-lg shadow-lg shadow-amber-500/30 btn-bounce">
+          🎉 More Fireworks!
+        </button>
+        <button onclick="closeWinnerModal()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-6 py-3 rounded-xl text-base sm:text-lg btn-bounce">
+          Back to Scoreboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Confirm Reset Modal (No alert/confirm) -->
+  <div id="reset-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="card-neon max-w-md w-full rounded-2xl p-6 text-center border border-rose-500/50 bg-slate-900">
+      <div class="text-4xl mb-3">⚠️</div>
+      <h3 class="text-xl font-bold font-game text-white mb-2">Reset All Scores?</h3>
+      <p class="text-sm text-slate-300 mb-6">All 8 group scores will be reset back to 0. Group names will remain saved.</p>
+      <div class="flex items-center justify-center gap-3">
+        <button onclick="confirmReset()" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-5 py-2.5 rounded-xl btn-bounce">
+          Yes, Reset All
+        </button>
+        <button onclick="closeResetModal()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-xl btn-bounce">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    const TOTAL_TEAMS = 8;
+    let scores = Array(TOTAL_TEAMS).fill(0);
+    let teamNames = [
+      "GROUP 1", "GROUP 2", "GROUP 3", "GROUP 4",
+      "GROUP 5", "GROUP 6", "GROUP 7", "GROUP 8"
+    ];
+
+    // Card accent color palette matching TV Game Show neon themes
+    const cardThemes = [
+      { border: 'border-cyan-400/60', badge: 'bg-cyan-500/20 text-cyan-300', btnPlus: 'bg-cyan-500 hover:bg-cyan-400' },
+      { border: 'border-amber-400/60', badge: 'bg-amber-500/20 text-amber-300', btnPlus: 'bg-amber-500 hover:bg-amber-400' },
+      { border: 'border-emerald-400/60', badge: 'bg-emerald-500/20 text-emerald-300', btnPlus: 'bg-emerald-500 hover:bg-emerald-400' },
+      { border: 'border-rose-400/60', badge: 'bg-rose-500/20 text-rose-300', btnPlus: 'bg-rose-500 hover:bg-rose-400' },
+      { border: 'border-purple-400/60', badge: 'bg-purple-500/20 text-purple-300', btnPlus: 'bg-purple-500 hover:bg-purple-400' },
+      { border: 'border-sky-400/60', badge: 'bg-sky-500/20 text-sky-300', btnPlus: 'bg-sky-500 hover:bg-sky-400' },
+      { border: 'border-orange-400/60', badge: 'bg-orange-500/20 text-orange-300', btnPlus: 'bg-orange-500 hover:bg-orange-400' },
+      { border: 'border-fuchsia-400/60', badge: 'bg-fuchsia-500/20 text-fuchsia-300', btnPlus: 'bg-fuchsia-500 hover:bg-fuchsia-400' }
+    ];
+
+    // Web Audio Synthesizer (Zero external file dependencies)
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Cheerful coin/bell chime for points gained
+    function playPositiveSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        
+        // Two-tone arpeggio (E5 -> G#5)
+        const notes = [659.25, 830.61];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+          gain.gain.setValueAtTime(0.18, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.22);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.25);
+        });
+      } catch (e) {
+        console.warn('Audio play restricted or failed', e);
+      }
+    }
+
+    // Low buzz sound for deduction
+    function playNegativeSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(95, now + 0.2);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.22);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    // Realistic clapping crowd & fanfare for victory
+    function playCrowdAndFanfare() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // Fanfare brass chords
+        const fanfareNotes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        fanfareNotes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+
+          gain.gain.setValueAtTime(0.12, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.45);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.5);
+        });
+
+        // Crowd clapping burst simulation (noise pulses)
+        for (let i = 0; i < 45; i++) {
+          setTimeout(() => {
+            if (!ctx) return;
+            const clapOsc = ctx.createOscillator();
+            const clapGain = ctx.createGain();
+            clapOsc.type = 'triangle';
+            clapOsc.frequency.setValueAtTime(180 + Math.random() * 450, ctx.currentTime);
+
+            clapGain.gain.setValueAtTime(0.06, ctx.currentTime);
+            clapGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+
+            clapOsc.connect(clapGain);
+            clapGain.connect(ctx.destination);
+            clapOsc.start();
+            clapOsc.stop(ctx.currentTime + 0.07);
+          }, 350 + i * 38 + Math.random() * 25);
+        }
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    // Render the 8 Cards
+    function renderScoreboard() {
+      const grid = document.getElementById('teams-grid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < TOTAL_TEAMS; i++) {
+        const theme = cardThemes[i % cardThemes.length];
+        const card = document.createElement('div');
+        card.className = `card-neon rounded-xl sm:rounded-2xl lg:rounded-3xl p-2.5 sm:p-4 lg:p-5 flex flex-col items-center justify-between border-2 ${theme.border}`;
+        card.id = `team-card-${i}`;
+
+        card.innerHTML = `
+          <!-- Header / Team Name Editable -->
+          <div class="w-full flex items-center justify-between gap-1 mb-1 sm:mb-2">
+            <span class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-black ${theme.badge} shrink-0">#${i + 1}</span>
+            <input 
+              type="text" 
+              value="${teamNames[i]}" 
+              onchange="updateTeamName(${i}, this.value)"
+              title="Click or tap to rename"
+              class="bg-transparent text-center font-game font-bold text-xs sm:text-base md:text-lg lg:text-xl text-white tracking-wide border-b border-transparent hover:border-cyan-400 focus:border-yellow-400 focus:outline-none w-full px-0.5 transition truncate"
+            />
+            <span class="text-[10px] sm:text-xs opacity-40 shrink-0">✏️</span>
+          </div>
+
+          <!-- Score Display -->
+          <div 
+            id="score-display-${i}" 
+            onclick="changeScore(${i}, 5)"
+            title="Tap to quickly add +5 points"
+            class="score text-glow-gold font-game font-black text-3xl sm:text-5xl md:text-6xl my-1 sm:my-2 cursor-pointer select-none transition-transform hover:scale-110 active:scale-95 leading-none"
+          >
+            ${scores[i]}
+          </div>
+
+          <!-- Buttons Group -->
+          <div class="w-full flex items-center justify-center gap-1.5 sm:gap-2 lg:gap-3 mt-1 sm:mt-2">
+            <!-- Minus Button -->
+            <button 
+              onclick="changeScore(${i}, -1)" 
+              class="w-8 h-8 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-lg sm:rounded-xl lg:rounded-2xl bg-rose-600/90 hover:bg-rose-500 text-white font-black text-lg sm:text-2xl shadow-md shadow-rose-600/40 border border-white/20 flex items-center justify-center btn-bounce transition shrink-0"
+              title="Minus 1 point"
+              aria-label="Minus 1 point"
+            >
+              −
+            </button>
+
+            <!-- Plus Button -->
+            <button 
+              onclick="changeScore(${i}, 1)" 
+              class="flex-1 h-8 sm:h-11 md:h-12 rounded-lg sm:rounded-xl lg:rounded-2xl ${theme.btnPlus} text-slate-950 font-black text-lg sm:text-2xl shadow-md shadow-cyan-500/30 border border-white/40 flex items-center justify-center gap-1 btn-bounce transition"
+              title="Add 1 point"
+              aria-label="Add 1 point"
+            >
+              <span>+</span>
+            </button>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      }
+    }
+
+    function changeScore(teamIdx, amount) {
+      scores[teamIdx] += amount;
+      
+      const scoreElem = document.getElementById(`score-display-${teamIdx}`);
+      if (scoreElem) {
+        scoreElem.innerText = scores[teamIdx];
+        scoreElem.classList.remove('score-animate');
+        void scoreElem.offsetWidth; // Trigger reflow for re-animation
+        scoreElem.classList.add('score-animate');
+      }
+
+      if (amount > 0) {
+        playPositiveSound();
+      } else {
+        playNegativeSound();
+      }
+    }
+
+    function updateTeamName(index, newName) {
+      if (newName.trim() !== '') {
+        teamNames[index] = newName.trim();
+      }
+    }
+
+    // Full screen confetti explosions
+    function triggerConfettiCannon() {
+      if (typeof confetti === 'function') {
+        // Center burst
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+
+        // Left and Right fireworks
+        setTimeout(() => {
+          confetti({
+            particleCount: 80,
+            angle: 60,
+            spread: 60,
+            origin: { x: 0.1, y: 0.7 }
+          });
+          confetti({
+            particleCount: 80,
+            angle: 120,
+            spread: 60,
+            origin: { x: 0.9, y: 0.7 }
+          });
+        }, 250);
+
+        // Gold & star shower
+        setTimeout(() => {
+          confetti({
+            particleCount: 60,
+            spread: 100,
+            shapes: ['star', 'circle'],
+            colors: ['#FFE400', '#FFBD00', '#E89400', '#FFCA3A', '#8AC926', '#1982C4'],
+            origin: { y: 0.4 }
+          });
+        }, 500);
+      }
+    }
+
+    // Identify winners and show dialog
+    function showWinner() {
+      const maxScore = Math.max(...scores);
+      const winningIndices = [];
+      scores.forEach((sc, idx) => {
+        if (sc === maxScore) {
+          winningIndices.push(idx);
+        }
+      });
+
+      const winnerListContainer = document.getElementById('winner-list');
+      winnerListContainer.innerHTML = '';
+
+      winningIndices.forEach(idx => {
+        const item = document.createElement('div');
+        item.className = 'bg-gradient-to-r from-amber-500/20 via-yellow-400/30 to-amber-500/20 border-2 border-yellow-400 rounded-2xl p-4 flex items-center justify-between shadow-lg';
+        item.innerHTML = `
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">🥇</span>
+            <span class="font-game font-black text-2xl sm:text-3xl text-white tracking-wide">${teamNames[idx]}</span>
+          </div>
+          <div class="font-game font-black text-3xl sm:text-4xl text-yellow-300">
+            ${maxScore} <span class="text-base text-yellow-100 font-semibold">PTS</span>
+          </div>
+        `;
+        winnerListContainer.appendChild(item);
+      });
+
+      // Show modal
+      const modal = document.getElementById('winner-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      // Play audio & visual fireworks
+      playCrowdAndFanfare();
+      triggerConfettiCannon();
+    }
+
+    function closeWinnerModal() {
+      const modal = document.getElementById('winner-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // Reset Modal Handlers
+    function openResetModal() {
+      document.getElementById('reset-modal').classList.remove('hidden');
+      document.getElementById('reset-modal').classList.add('flex');
+    }
+
+    function closeResetModal() {
+      document.getElementById('reset-modal').classList.add('hidden');
+      document.getElementById('reset-modal').classList.remove('flex');
+    }
+
+    function confirmReset() {
+      scores = Array(TOTAL_TEAMS).fill(0);
+      renderScoreboard();
+      closeResetModal();
+      playPositiveSound();
+    }
+
+    // Support for setting classroom photo as background directly
+    document.getElementById('bgInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          document.body.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.75)), url('${event.target.result}')`;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Start on window load
+    window.onload = function() {
+      renderScoreboard();
+    };
+  </script>
+</body>
+</html>
